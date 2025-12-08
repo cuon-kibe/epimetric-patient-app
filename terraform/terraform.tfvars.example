@@ -1,0 +1,36 @@
+# Terraform変数の設定例
+# このファイルをterraform.tfvarsにコピーして使用してください
+# セキュリティ上の理由から、terraform.tfvarsは.gitignoreに追加すること
+
+aws_region  = "ap-northeast-1"
+environment = "dev"
+
+# プロジェクト設定
+project_name = "epimetric-patient"
+
+# VPC設定
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["ap-northeast-1a", "ap-northeast-1c"]
+
+# ECS設定（テスト環境用最小構成）
+nextjs_cpu       = 256
+nextjs_memory    = 512
+rails_cpu        = 256
+rails_memory     = 512
+nextjs_task_count = 1
+rails_task_count  = 1
+
+# RDS設定
+db_instance_class    = "db.t4g.micro"
+db_name              = "epimetric_patient"
+db_username          = "app_user"
+db_password          = "ChangeThisPassword123!" # 必ず変更してください
+db_allocated_storage = 20
+
+# Rails設定
+# rails secret key:base コマンドで生成した値を設定
+rails_secret_key_base = "your_secret_key_base_here_generate_with_rails_secret"
+
+# Next.js設定
+nextjs_api_url_internal = "http://rails-api.local:3000"
+
