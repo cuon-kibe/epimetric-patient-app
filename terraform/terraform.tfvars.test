@@ -1,0 +1,55 @@
+# ECS Service Discovery テスト用 最小構成
+#
+# 使用方法:
+#   cp terraform.tfvars.test terraform.tfvars
+#   terraform init
+#   terraform plan
+#   terraform apply
+
+# プロジェクト設定
+project_name = "epimetric-test"
+environment  = "test"
+aws_region   = "ap-northeast-1"
+
+# 最小スペック（0.25vCPU, 0.5GB RAM）
+backend_cpu             = 256   # 0.25vCPU
+backend_memory          = 512   # 0.5GB
+backend_desired_count   = 1
+
+frontend_cpu            = 256   # 0.25vCPU
+frontend_memory         = 512   # 0.5GB
+frontend_desired_count  = 1
+
+# RDS 最小構成（Single-AZ）
+db_instance_class            = "db.t4g.micro"
+db_allocated_storage         = 10
+db_multi_az                  = false  # Single-AZ（コスト削減）
+db_backup_retention_period   = 1      # 最小バックアップ期間
+
+# データベース認証情報（必ず変更してください）
+db_name     = "epimetric_test"
+db_username = "epimetric_admin"
+db_password = "CHANGE_ME_test_password_123"  # 本番では強固なパスワードに変更
+
+# コスト削減設定
+enable_nat_gateway  = false  # NAT Gateway不要（-$35/月）
+enable_cloudfront   = false  # CloudFront不要（テスト環境）
+enable_waf          = false  # WAF不要（テスト環境）
+
+# Auto Scaling 無効化（テスト環境）
+enable_autoscaling = false
+
+# ドメイン設定（テスト環境では不要）
+domain_name      = ""
+route53_zone_id  = ""
+
+# タグ設定
+tags = {
+  Project     = "EpimetricPatient"
+  Environment = "Test"
+  Purpose     = "ServiceDiscoveryTest"
+  ManagedBy   = "Terraform"
+  CostCenter  = "Development"
+  AutoDelete  = "true"  # テスト終了後に削除
+}
+

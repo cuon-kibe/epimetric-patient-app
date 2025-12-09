@@ -1,14 +1,6 @@
-# ECS Service Discovery をシミュレートする Docker Compose 設定
-# 
-# 本番環境と同じ構成でテスト可能:
-#   - バックエンドを外部に公開しない（Service Discovery経由のみ）
-#   - フロントエンドからのみアクセス可能
-#   - ブラウザからバックエンドへの直接アクセス不可
-#
+
 # 使用方法:
 #   docker compose -f docker-compose.service-discovery.yml up --build
-#
-
 services:
   db:
     image: postgres:16.2
@@ -17,7 +9,6 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: epimetric_patient_dev
       TZ: Asia/Tokyo
-    # 開発時のDB接続確認用にポート公開（本番では不要）
     ports:
       - "5432:5432"
     volumes:
@@ -68,9 +59,10 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: development
-      # ⚠️ CSR用のAPI URLもフロントエンド経由に変更
-      # ブラウザからのAPI呼び出しは Next.js API Routes を経由
-      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      # ⚠️ CSR用のAPI URLをフロントエンド経由に変更
+      # ブラウザからのAPI呼び出しは Next.js API Routes (/api/[...proxy]) を経由
+      # 例: fetch('/api/v1/login') → Next.js → backend:3000/api/v1/login
+      NEXT_PUBLIC_API_URL: http://localhost:4000
       # SSR用: Service Discovery経由（コンテナ間通信）
       API_URL: http://backend:3000
       # バックエンドの実際のURL（Next.js API Routes内で使用）
@@ -79,7 +71,7 @@ services:
     volumes:
       - ./frontend:/app
       - front_node_modules_sd:/app/node_modules
-    command: yarn dev -p 4000
+    command: sh -c "yarn install && yarn dev -p 4000"
     ports:
       - "4000:4000"  # フロントエンドのみ外部公開
     depends_on:

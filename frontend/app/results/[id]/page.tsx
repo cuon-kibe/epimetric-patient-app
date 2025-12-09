@@ -1,83 +1,69 @@
 /**
- * 検査結果詳細ページ
+ * 検査結果詳細ページ（SSR版）
  * 
  * 概要:
  *   特定の血液検査結果の詳細を表示
+ *   Server Componentで事前にデータを取得
  * 
  * 機能:
  *   - 検査項目と結果値の表示
  *   - 基準値との比較
  *   - ダッシュボードへ戻るリンク
+ * 
+ * SSR構成:
+ *   - Service Discovery経由でバックエンドAPIを呼び出し
+ *   - サーバーサイドでデータを取得してHTMLを生成
  */
 
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { getBloodTestResult, BloodTestResultDetail } from '@/lib/api/blood-test-results';
-import { format } from 'date-fns';
+import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { getBloodTestResultServer, BloodTestResultDetail, TestItemValue } from '@/lib/api/blood-test-results.server';
 
-export default function ResultDetailPage() {
-    const router = useRouter();
-    const params = useParams();
-    const id = params.id as string;
+interface ResultDetailPageProps {
+    params: Promise<{ id: string }>;
+}
 
-    const [result, setResult] = useState<BloodTestResultDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+/**
+ * 基準値の範囲外かどうかをチェック
+ * 
+ * @param value 検査値
+ * @param min 基準値下限
+ * @param max 基準値上限
+ * @returns 範囲外の場合true
+ */
+function isOutOfRange(value: string, min?: string, max?: string): boolean {
+    if (!min && !max) return false;
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return false;
 
-    useEffect(() => {
-        loadResult();
-    }, [id]);
+    if (min && numValue < parseFloat(min)) return true;
+    if (max && numValue > parseFloat(max)) return true;
+    return false;
+}
 
-    const loadResult = async () => {
-        try {
-            setLoading(true);
-            const data = await getBloodTestResult(parseInt(id));
-            setResult(data);
-        } catch (err: any) {
-            setError('検査結果の読み込みに失敗しました');
-            if (err.response?.status === 401) {
-                router.push('/login');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+/**
+ * 検査結果詳細ページ（Server Component）
+ * 
+ * @param props ページプロパティ
+ */
+export default async function ResultDetailPage({ params }: ResultDetailPageProps) {
+    const { id } = await params;
 
-    const isOutOfRange = (value: string, min?: string, max?: string) => {
-        if (!min && !max) return false;
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) return false;
+    let result: BloodTestResultDetail;
 
-        if (min && numValue < parseFloat(min)) return true;
-        if (max && numValue > parseFloat(max)) return true;
-        return false;
-    };
-
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <p className="text-gray-600">読み込み中...</p>
-            </div>
-        );
+    try {
+        // サーバーサイドでデータを取得（Service Discovery経由）
+        result = await getBloodTestResultServer(parseInt(id));
+    } catch (error) {
+        console.error('[Result Detail SSR Error]', error);
+        // 認証エラーの場合はログインページにリダイレクト
+        // それ以外の場合は404
+        redirect('/login');
     }
 
-    if (error || !result) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <div className="text-center">
-                    <p className="text-red-600">{error || '検査結果が見つかりません'}</p>
-                    <Link
-                        href="/dashboard"
-                        className="mt-4 inline-block text-blue-600 hover:text-blue-800"
-                    >
-                        ダッシュボードに戻る
-                    </Link>
-                </div>
-            </div>
-        );
+    if (!result) {
+        notFound();
     }
 
     return (
@@ -150,7 +136,7 @@ export default function ResultDetailPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white">
-                                {Object.entries(result.test_items).map(([itemName, itemData]) => {
+                                {Object.entries(result.test_items).map(([itemName, itemData]: [string, TestItemValue]) => {
                                     const outOfRange = isOutOfRange(
                                         itemData.value,
                                         itemData.reference_min,
@@ -195,4 +181,3 @@ export default function ResultDetailPage() {
         </div>
     );
 }
-
