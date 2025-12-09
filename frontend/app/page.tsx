@@ -3,29 +3,24 @@
  * 
  * 概要:
  *   アプリケーションのランディングページ
- *   ログインページへリダイレクト
+ *   認証状態に応じてリダイレクト
+ * 
+ * 動作:
+ *   - 認証済み → ダッシュボードへ
+ *   - 未認証 → ログインページへ
  */
 
-'use client';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { isAuthenticated } from '@/lib/api/auth';
+export default async function Home() {
+  const session = await auth();
 
-export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isAuthenticated()) {
-      router.push('/dashboard');
-    } else {
-      router.push('/login');
-    }
-  }, [router]);
-
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <p className="text-gray-600">読み込み中...</p>
-    </div>
-  );
+  if (session?.user) {
+    // 認証済み → ダッシュボードへ
+    redirect('/dashboard');
+  } else {
+    // 未認証 → ログインページへ
+    redirect('/login');
+  }
 }

@@ -3,12 +3,28 @@
 患者向け血液検査結果閲覧アプリケーション
 
 ## 概要
+# Epimetric Patient App
 
+患者向け血液検査結果閲覧アプリケーション
+
+## 概要
+
+患者が自身の血液検査結果をオンラインで確認できるWebアプリケーションです。
+医療機関スタッフはCSVファイルで検査結果を一括アップロードできます。
 患者が自身の血液検査結果をオンラインで確認できるWebアプリケーションです。
 医療機関スタッフはCSVファイルで検査結果を一括アップロードできます。
 
 ### 主な機能
 
+- **患者向け**
+  - ログイン/新規登録
+  - 血液検査結果の一覧表示
+  - 検査結果の詳細確認
+
+- **医療機関スタッフ向け**
+  - スタッフログイン
+  - 患者一覧の確認
+  - 検査結果のCSV一括アップロード
 - **患者向け**
   - ログイン/新規登録
   - 血液検査結果の一覧表示
@@ -33,40 +49,11 @@
 
 ---
 
-## クイックスタート
-
-```bash
-# 1. DBを起動
-docker compose up -d
-
-# 2. フロントエンドセットアップ
-cd frontend
-yarn install
-cp env.local.example .env
-yarn db:generate
-yarn db:push
-yarn db:seed
-
-# 3. 開発サーバー起動
-yarn dev
-```
-
-http://localhost:3000 でアクセス可能になります。
-
----
-
-## ログイン情報（テストユーザー）
-
-| ユーザー種別 | URL | メール | パスワード |
-|-------------|-----|--------|-----------|
-| 患者 | http://localhost:3000/login | `test@example.com` | `password123` |
-| 医療機関スタッフ | http://localhost:3000/mc/login | `staff@example.com` | `staff123` |
-
----
-
-## 環境構築（詳細）
+## 環境構築
 
 ### 前提条件
+
+以下がインストールされていること：
 
 - Node.js 20.x 以上
 - Yarn 1.22.x 以上
@@ -80,8 +67,10 @@ cd epimetric-patient-app
 ```
 
 ### 2. データベースの起動
+### 2. データベースの起動
 
 ```bash
+docker compose up -d
 docker compose up -d
 ```
 
@@ -105,7 +94,7 @@ yarn install
 cp env.local.example .env
 ```
 
-`.env` ファイルの内容：
+`.env` ファイルの内容（デフォルトで開発環境用に設定済み）：
 
 ```env
 DATABASE_URL="postgresql://postgres:password@localhost:5432/epimetric_patient_dev"
@@ -139,140 +128,16 @@ yarn db:seed
 yarn dev
 ```
 
----
-
-## 動作確認ガイド
-
-### 現在の構成（Next.js フルスタック + Prisma）
-
-#### 確認手順
-
-```bash
-# 1. DBを起動
-docker compose up -d
-
-# 2. アプリを起動
-cd frontend
-yarn dev
-
-# 3. ブラウザで確認
-open http://localhost:3000
-```
-
-#### 確認項目
-
-| # | 確認項目 | 手順 | 期待結果 |
-|---|---------|------|---------|
-| 1 | **患者ログイン** | `/login` で `test@example.com` / `password123` | ダッシュボードにリダイレクト |
-| 2 | **患者登録** | `/register` で新規登録 | ダッシュボードにリダイレクト |
-| 3 | **検査結果一覧** | `/dashboard` にアクセス | 検査結果が表示される |
-| 4 | **検査結果詳細** | 一覧から詳細をクリック | 詳細ページが表示される |
-| 5 | **スタッフログイン** | `/mc/login` で `staff@example.com` / `staff123` | 管理ダッシュボードにリダイレクト |
-| 6 | **患者一覧** | `/mc/patients` | 登録患者が表示される |
-| 7 | **CSVアップロード** | `/mc/results/upload` でCSVアップロード | 検査結果が登録される |
-
-#### Prisma Studio でデータ確認
-
-```bash
-cd frontend
-yarn db:studio
-# http://localhost:5555 でDBをGUI確認
-```
-
-#### ターミナルでPrismaクエリログを確認
-
-開発サーバーのターミナルに `prisma:query` ログが表示されます：
-
-```
-prisma:query SELECT "public"."patients"."id", ...
-prisma:query INSERT INTO "public"."blood_test_results" ...
-```
+アプリケーションが http://localhost:3000 で起動します。
 
 ---
 
-### 参考：旧構成（Rails API + Next.js + ECS Service Discovery）
+## ログイン情報（テストユーザー）
 
-> **注意**: この構成は現在使用していません。過去の動作確認記録として残しています。
-
-#### ECS Service Discovery シミュレーション構成図
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Docker Network                          │
-│                                                            │
-│  ┌─────────────┐        ┌─────────────┐                   │
-│  │  frontend   │───────▶│   backend   │                   │
-│  │  (Next.js)  │ HTTP   │   (Rails)   │                   │
-│  │  Port:4000  │        │  Port:3000  │ ← 外部非公開      │
-│  └──────┬──────┘        └──────┬──────┘                   │
-│         │                      │                          │
-│         │                      ▼                          │
-│         │               ┌─────────────┐                   │
-│         │               │     db      │                   │
-│         │               │ (PostgreSQL)│                   │
-│         │               └─────────────┘                   │
-└─────────│──────────────────────────────────────────────────┘
-          │
-          ▼ (外部公開)
-    ┌───────────┐
-    │  Browser  │
-    │ localhost │
-    │   :4000   │
-    └───────────┘
-```
-
-#### 動作確認で検証したこと
-
-| # | 検証項目 | 結果 |
-|---|---------|------|
-| 1 | **バックエンドがDockerネットワーク内でのみアクセス可能** | ✅ `backend:3000` で内部通信成功 |
-| 2 | **バックエンドが外部から直接アクセス不可** | ✅ `localhost:3000` は接続拒否 |
-| 3 | **フロントエンドがSSRでバックエンドAPIを呼び出し** | ✅ Server Componentsから `http://backend:3000` で通信 |
-| 4 | **ブラウザからはフロントエンド経由のみ** | ✅ `/api/*` プロキシ経由でアクセス |
-
-#### 旧構成の環境変数
-
-```env
-# フロントエンド (frontend/.env)
-API_URL=http://backend:3000              # SSR用（内部通信）
-NEXT_PUBLIC_API_URL=http://localhost:4000 # CSR用（プロキシ経由）
-```
-
-#### 旧構成のDocker Compose (参考)
-
-```yaml
-# docker-compose.service-discovery.yml (削除済み)
-services:
-  backend:
-    expose:
-      - "3000"  # ポート公開なし（内部のみ）
-    # ports: なし
-
-  frontend:
-    ports:
-      - "4000:4000"  # 外部公開
-    environment:
-      API_URL: http://backend:3000
-```
-
-#### ECS Service Discovery とは
-
-AWS ECS環境で、サービス間通信を実現する仕組み：
-
-```
-[Internet] → [ALB] → [Next.js (ECS)]
-                           ↓
-                    Service Discovery
-                           ↓
-                    [Rails API (ECS)] ← 外部非公開
-                           ↓
-                    [RDS PostgreSQL]
-```
-
-**メリット:**
-- Rails APIを直接インターネットに公開しない
-- VPC内部通信で高速（1-2ms）
-- ALB 1台で済む（コスト削減）
+| ユーザー種別 | URL | メール | パスワード |
+|-------------|-----|--------|-----------|
+| 患者 | http://localhost:3000/login | `test@example.com` | `password123` |
+| 医療機関スタッフ | http://localhost:3000/mc/login | `staff@example.com` | `staff123` |
 
 ---
 
@@ -340,13 +205,49 @@ epimetric-patient-app/
     ├── package.json
     ├── .env                    # 環境変数（gitignore）
     └── env.local.example       # 環境変数テンプレート
+├── docker-compose.yml          # Docker Compose設定（DBのみ）
+├── README.md                   # このファイル
+│
+└── frontend/                   # Next.jsアプリケーション
+    ├── app/                    # App Router
+    │   ├── page.tsx            # ルートページ
+    │   ├── login/              # 患者ログイン
+    │   ├── register/           # 患者登録
+    │   ├── dashboard/          # 患者ダッシュボード
+    │   ├── results/[id]/       # 検査結果詳細
+    │   ├── mc/                 # 医療機関管理画面
+    │   │   ├── login/          # スタッフログイン
+    │   │   ├── dashboard/      # スタッフダッシュボード
+    │   │   ├── patients/       # 患者一覧
+    │   │   └── results/        # 検査結果管理
+    │   ├── actions/            # Server Actions
+    │   └── api/                # API Routes
+    │
+    ├── lib/                    # ライブラリ
+    │   ├── auth.ts             # NextAuth.js設定
+    │   └── prisma.ts           # Prismaクライアント
+    │
+    ├── prisma/                 # Prisma
+    │   ├── schema.prisma       # スキーマ定義
+    │   └── seed.ts             # シードデータ
+    │
+    ├── package.json
+    ├── .env                    # 環境変数（gitignore）
+    └── env.local.example       # 環境変数テンプレート
 ```
 
 ---
 
 ## アーキテクチャ
 
-### 現在の構成（SSR + Server Actions）
+### SSR + Server Actions
+
+このアプリケーションはNext.js App Routerを使用し、以下の構成で動作します：
+
+- **Server Components**: ページはサーバーサイドでレンダリング
+- **Server Actions**: データの作成・更新はServer Actionsで直接DB操作
+- **Prisma**: データベースへの直接アクセス
+- **NextAuth.js**: セッションベースの認証
 
 ```
 [ブラウザ] → [Next.js Server] → [PostgreSQL]
@@ -354,33 +255,6 @@ epimetric-patient-app/
            Server Components
            Server Actions
            Prisma ORM
-```
-
-- **Server Components**: ページはサーバーサイドでレンダリング
-- **Server Actions**: データの作成・更新はServer Actionsで直接DB操作
-- **Prisma**: データベースへの直接アクセス
-- **NextAuth.js**: セッションベースの認証
-
-### 本番環境推奨構成（AWS Amplify）
-
-```
-[CloudFront] → [Amplify Hosting] → [RDS PostgreSQL]
-                    ↑
-              Next.js SSR
-              Prisma ORM
-```
-
----
-
-## CSVフォーマット
-
-医療機関スタッフがアップロードするCSVのフォーマット：
-
-```csv
-患者メール,患者名,検査日,項目名,結果値,単位,基準値下限,基準値上限
-test@example.com,山田太郎,2024-01-15,WBC,5.2,10^3/μL,3.5,9.0
-test@example.com,山田太郎,2024-01-15,RBC,4.5,10^6/μL,4.0,5.5
-test@example.com,山田太郎,2024-01-15,HGB,14.0,g/dL,13.0,17.0
 ```
 
 ---
@@ -417,21 +291,9 @@ yarn db:push
 yarn db:seed
 ```
 
-### ログインできない
-
-シードデータのパスワードが更新されていない可能性があります：
-
-```bash
-# シードを再実行
-yarn db:seed
-
-# または直接DBでパスワードをリセット
-docker exec <container> psql -U postgres -d epimetric_patient_dev \
-  -c "UPDATE patients SET password_hash = '...' WHERE email = 'test@example.com';"
-```
-
 ---
 
 ## ライセンス
 
+Private
 Private

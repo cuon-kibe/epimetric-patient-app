@@ -1,3 +1,20 @@
+# Next.js フルスタック構成用 Docker Compose
+# 
+# 概要:
+#   PostgreSQLのみを起動（Next.jsはローカルで実行）
+#
+# 使用方法:
+#   docker compose up -d        # DB起動
+#   cd frontend && yarn dev     # Next.js開発サーバー起動
+#
+# 構成:
+#   - PostgreSQL: データベース
+#   - Next.js: ローカルで実行（yarn dev）
+#
+# 変更履歴:
+#   Rails + Next.js 構成から Next.js フルスタック構成に変更
+#   Railsが不要になったため、docker-composeはDBのみに簡素化
+
 services:
   db:
     image: postgres:16.2
@@ -16,50 +33,5 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    environment:
-      RAILS_ENV: development
-      DATABASE_HOST: db
-      DATABASE_NAME: epimetric_patient_dev
-      DATABASE_USERNAME: postgres
-      DATABASE_PASSWORD: password
-      DATABASE_PORT: 5432
-      RAILS_MAX_THREADS: 5
-      TZ: Asia/Tokyo
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails db:create db:migrate && bundle exec rails s -b '0.0.0.0'"
-    volumes:
-      - ./backend:/app
-      - bundle_cache:/usr/local/bundle
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    tty: true
-    stdin_open: true
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:3000
-      API_URL: http://backend:3000
-      TZ: Asia/Tokyo
-    volumes:
-      - ./frontend:/app
-      - front_node_modules:/app/node_modules
-    command: yarn dev -p 4000
-    ports:
-      - "4000:4000"
-    depends_on:
-      - backend
-
 volumes:
   postgres_data:
-  front_node_modules:
-  bundle_cache:

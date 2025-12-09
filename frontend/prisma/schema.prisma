@@ -1,0 +1,168 @@
+// Prisma Schema
+// 
+// 概要:
+//   血液検査結果管理アプリのデータベーススキーマ
+//   Next.jsフルスタック構成で使用
+//
+// 使用方法:
+//   npx prisma generate    - Prismaクライアント生成
+//   npx prisma migrate dev - マイグレーション実行
+//   npx prisma studio      - DBブラウザ起動
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// 患者（Patient）
+// ============================================================
+
+/// 患者テーブル
+/// 患者のログイン情報と基本情報を管理
+model Patient {
+  id             Int               @id @default(autoincrement())
+  email          String            @unique
+  passwordHash   String            @map("password_hash")
+  name           String
+  dateOfBirth    DateTime?         @map("date_of_birth") @db.Date
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  // リレーション
+  bloodTestResults BloodTestResult[]
+
+  @@map("patients")
+}
+
+// ============================================================
+// 医療機関（Medical Center）
+// ============================================================
+
+/// 医療機関テーブル
+/// 医療機関の基本情報を管理
+model MedicalCenter {
+  id        Int      @id @default(autoincrement())
+  name      String   /// 医療機関名
+  code      String   @unique /// 医療機関コード（一意識別子）
+  email     String   @unique /// 代表メールアドレス
+  phone     String?  /// 電話番号
+  address   String?  /// 住所
+  active    Boolean  @default(true) /// 有効/無効フラグ
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // リレーション
+  staffs           MedicalCenterStaff[]
+  bloodTestResults BloodTestResult[]
+  csvUploadLogs    CsvUploadLog[]
+
+  @@index([active])
+  @@map("medical_centers")
+}
+
+/// 医療機関スタッフテーブル
+/// 医療機関の職員情報を管理
+model MedicalCenterStaff {
+  id              Int           @id @default(autoincrement())
+  medicalCenterId Int           @map("medical_center_id")
+  email           String        @unique /// ログイン用メールアドレス
+  passwordHash    String        @map("password_hash") /// ハッシュ化されたパスワード
+  name            String        /// スタッフ氏名
+  role            StaffRole     @default(STAFF) /// ロール（STAFF/ADMIN）
+  active          Boolean       @default(true) /// 有効/無効フラグ
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // リレーション
+  medicalCenter    MedicalCenter     @relation(fields: [medicalCenterId], references: [id])
+  bloodTestResults BloodTestResult[]
+  csvUploadLogs    CsvUploadLog[]
+
+  @@index([medicalCenterId, active])
+  @@map("medical_center_staffs")
+}
+
+/// スタッフロール
+enum StaffRole {
+  STAFF
+  ADMIN
+}
+
+// ============================================================
+// 血液検査結果（Blood Test Result）
+// ============================================================
+
+/// 血液検査結果テーブル
+/// 患者の血液検査結果を管理
+model BloodTestResult {
+  id                   Int       @id @default(autoincrement())
+  patientId            Int       @map("patient_id")
+  testDate             DateTime  @map("test_date") @db.Date /// 検査日
+  testItems            Json      @default("{}") @map("test_items") /// 検査項目（JSON形式）
+  s3FileKey            String?   @map("s3_file_key") /// S3保存パス
+  notes                String?   /// 備考
+  medicalCenterId      Int?      @map("medical_center_id") /// 登録した医療機関
+  medicalCenterStaffId Int?      @map("medical_center_staff_id") /// 登録したスタッフ
+  csvFileName          String?   @map("csv_file_name") /// 元のCSVファイル名
+  csvRowNumber         Int?      @map("csv_row_number") /// CSVファイル内の行番号
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  // リレーション
+  patient            Patient             @relation(fields: [patientId], references: [id])
+  medicalCenter      MedicalCenter?      @relation(fields: [medicalCenterId], references: [id])
+  medicalCenterStaff MedicalCenterStaff? @relation(fields: [medicalCenterStaffId], references: [id])
+
+  @@index([patientId])
+  @@index([testDate])
+  @@index([medicalCenterId])
+  @@index([medicalCenterId, patientId])
+  @@index([medicalCenterId, testDate])
+  @@map("blood_test_results")
+}
+
+// ============================================================
+// CSVアップロードログ（CSV Upload Log）
+// ============================================================
+
+/// CSVアップロードログテーブル
+/// CSV取り込み履歴を管理
+model CsvUploadLog {
+  id                   Int             @id @default(autoincrement())
+  medicalCenterId      Int             @map("medical_center_id") /// 取り込みを実行した医療機関
+  medicalCenterStaffId Int             @map("medical_center_staff_id") /// 取り込みを実行したスタッフ
+  fileName             String          @map("file_name") /// 元のファイル名
+  filePath             String?         @map("file_path") /// S3保存パス
+  fileSize             Int?            @map("file_size") /// ファイルサイズ（バイト）
+  totalRows            Int             @default(0) @map("total_rows") /// 総行数
+  successRows          Int             @default(0) @map("success_rows") /// 成功行数
+  errorRows            Int             @default(0) @map("error_rows") /// エラー行数
+  errorDetails         String?         @map("error_details") /// エラー詳細（JSON形式）
+  status               UploadStatus    @default(PROCESSING) /// processing/completed/failed
+  startedAt            DateTime?       @map("started_at") /// 処理開始日時
+  completedAt          DateTime?       @map("completed_at") /// 処理完了日時
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  // リレーション
+  medicalCenter      MedicalCenter      @relation(fields: [medicalCenterId], references: [id])
+  medicalCenterStaff MedicalCenterStaff @relation(fields: [medicalCenterStaffId], references: [id])
+
+  @@index([medicalCenterId])
+  @@index([medicalCenterId, createdAt])
+  @@index([status])
+  @@map("csv_upload_logs")
+}
+
+/// アップロードステータス
+enum UploadStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+

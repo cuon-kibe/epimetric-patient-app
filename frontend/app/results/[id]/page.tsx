@@ -1,8 +1,9 @@
 /**
- * 検査結果詳細ページ
+ * 検査結果詳細ページ（SSR + Prisma）
  * 
  * 概要:
  *   特定の血液検査結果の詳細を表示
+ *   Server Componentで直接DBからデータを取得
  * 
  * 機能:
  *   - 検査項目と結果値の表示
@@ -10,75 +11,58 @@
  *   - ダッシュボードへ戻るリンク
  */
 
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { getBloodTestResult, BloodTestResultDetail } from '@/lib/api/blood-test-results';
-import { format } from 'date-fns';
+import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
-export default function ResultDetailPage() {
-    const router = useRouter();
-    const params = useParams();
-    const id = params.id as string;
+interface TestItemValue {
+    value: string;
+    unit?: string;
+    reference_min?: string;
+    reference_max?: string;
+}
 
-    const [result, setResult] = useState<BloodTestResultDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+interface ResultDetailPageProps {
+    params: Promise<{ id: string }>;
+}
 
-    useEffect(() => {
-        loadResult();
-    }, [id]);
+/**
+ * 基準値の範囲外かどうかをチェック
+ */
+function isOutOfRange(value: string, min?: string, max?: string): boolean {
+    if (!min && !max) return false;
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return false;
 
-    const loadResult = async () => {
-        try {
-            setLoading(true);
-            const data = await getBloodTestResult(parseInt(id));
-            setResult(data);
-        } catch (err: any) {
-            setError('検査結果の読み込みに失敗しました');
-            if (err.response?.status === 401) {
-                router.push('/login');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (min && numValue < parseFloat(min)) return true;
+    if (max && numValue > parseFloat(max)) return true;
+    return false;
+}
 
-    const isOutOfRange = (value: string, min?: string, max?: string) => {
-        if (!min && !max) return false;
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) return false;
+export default async function ResultDetailPage({ params }: ResultDetailPageProps) {
+    const { id } = await params;
 
-        if (min && numValue < parseFloat(min)) return true;
-        if (max && numValue > parseFloat(max)) return true;
-        return false;
-    };
-
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <p className="text-gray-600">読み込み中...</p>
-            </div>
-        );
+    // セッションを取得
+    const session = await auth();
+    if (!session?.user?.id) {
+        redirect('/login');
     }
 
-    if (error || !result) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <div className="text-center">
-                    <p className="text-red-600">{error || '検査結果が見つかりません'}</p>
-                    <Link
-                        href="/dashboard"
-                        className="mt-4 inline-block text-blue-600 hover:text-blue-800"
-                    >
-                        ダッシュボードに戻る
-                    </Link>
-                </div>
-            </div>
-        );
+    // 直接DBからデータを取得
+    const result = await prisma.bloodTestResult.findFirst({
+        where: {
+            id: parseInt(id),
+            patientId: parseInt(session.user.id),
+        },
+    });
+
+    if (!result) {
+        notFound();
     }
+
+    const testItems = result.testItems as Record<string, TestItemValue>;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -107,13 +91,13 @@ export default function ResultDetailPage() {
                         <div>
                             <dt className="text-sm font-medium text-gray-500">検査日</dt>
                             <dd className="mt-1 text-sm text-gray-900">
-                                {format(new Date(result.test_date), 'yyyy年MM月dd日')}
+                                {format(new Date(result.testDate), 'yyyy年MM月dd日')}
                             </dd>
                         </div>
                         <div>
                             <dt className="text-sm font-medium text-gray-500">登録日時</dt>
                             <dd className="mt-1 text-sm text-gray-900">
-                                {format(new Date(result.created_at), 'yyyy年MM月dd日 HH:mm')}
+                                {format(new Date(result.createdAt), 'yyyy年MM月dd日 HH:mm')}
                             </dd>
                         </div>
                     </dl>
@@ -150,7 +134,7 @@ export default function ResultDetailPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white">
-                                {Object.entries(result.test_items).map(([itemName, itemData]) => {
+                                {Object.entries(testItems).map(([itemName, itemData]) => {
                                     const outOfRange = isOutOfRange(
                                         itemData.value,
                                         itemData.reference_min,
@@ -195,4 +179,3 @@ export default function ResultDetailPage() {
         </div>
     );
 }
-
