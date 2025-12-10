@@ -34,3 +34,4 @@ rails_secret_key_base = "your_secret_key_base_here_generate_with_rails_secret"
 # Next.js設定
 nextjs_api_url_internal = "http://rails-api.local:3000"
 
+
