@@ -126,6 +126,10 @@ yarn db:seed
 
 ```bash
 yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
 アプリケーションが http://localhost:3000 で起動します。
