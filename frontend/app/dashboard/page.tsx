@@ -3,11 +3,11 @@
  * 
  * 概要:
  *   ログイン後のメインダッシュボード
- *   血液検査結果の一覧とCSVアップロード機能
+ *   血液検査結果の一覧を表示
  * 
  * SSR構成:
  *   - Server Component: ページ本体、検査結果一覧
- *   - Client Component: ヘッダー（ログアウト）、CSVアップロード
+ *   - Client Component: ヘッダー（ログアウト）
  * 
  * データ取得:
  *   - Service Discovery経由でバックエンドAPIを呼び出し
@@ -26,7 +26,6 @@ import { redirect } from 'next/navigation';
 import { getCurrentPatientServer } from '@/lib/api/auth.server';
 import { getBloodTestResultsServer } from '@/lib/api/blood-test-results.server';
 import { DashboardHeader } from './components/DashboardHeader';
-import { CsvUploader } from './components/CsvUploader';
 import { ResultsList } from './components/ResultsList';
 
 /**
@@ -52,9 +51,6 @@ export default async function DashboardPage() {
                 <DashboardHeader patientName={patient.name} />
 
                 <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    {/* CSVアップロード（Client Component: ファイル選択機能） */}
-                    <CsvUploader />
-
                     {/* 検査結果一覧（Server Component: 静的表示） */}
                     <ResultsList results={results} />
                 </main>
