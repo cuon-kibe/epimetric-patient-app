@@ -16,50 +16,24 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+  app:
+    build: .
+    ports:
+      - "3000:3000"
     environment:
-      RAILS_ENV: development
-      DATABASE_HOST: db
-      DATABASE_NAME: epimetric_patient_dev
-      DATABASE_USERNAME: postgres
-      DATABASE_PASSWORD: password
-      DATABASE_PORT: 5432
-      RAILS_MAX_THREADS: 5
+      # データベース接続（コンテナ間通信のためホストは"db"）
+      DATABASE_URL: "postgresql://postgres:password@db:5432/epimetric_patient_dev"
+      # NextAuth.js認証設定
+      AUTH_SECRET: "docker-dev-secret-change-in-production"
+      AUTH_URL: "http://localhost:3000"
+      # Node環境
+      NODE_ENV: "development"
       TZ: Asia/Tokyo
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails db:create db:migrate && bundle exec rails s -b '0.0.0.0'"
-    volumes:
-      - ./backend:/app
-      - bundle_cache:/usr/local/bundle
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "3000:3000"
-    tty: true
-    stdin_open: true
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:3000
-      API_URL: http://backend:3000
-      TZ: Asia/Tokyo
-    volumes:
-      - ./frontend:/app
-      - front_node_modules:/app/node_modules
-    command: yarn dev -p 4000
-    ports:
-      - "4000:4000"
-    depends_on:
-      - backend
+    # Ctrl+Cでサーバーを停止可能にする
+    init: true
 
 volumes:
   postgres_data:
-  front_node_modules:
-  bundle_cache:
